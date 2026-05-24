@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>PPPC Builder</title>
+    <script>
+      // Redirect any 404 to the app root, preserving query and hash so the
+      // MSAL response (code/state) is forwarded back into the SPA.
+      (function () {
+        var base = '/';
+        try {
+          var meta = document.querySelector('meta[name="vite-base"]');
+          if (meta && meta.content) base = meta.content;
+        } catch (e) {}
+        var href = base + window.location.search + window.location.hash;
+        window.location.replace(href);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>

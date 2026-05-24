@@ -136,6 +136,42 @@ This project is intentionally:
 
 ---
 
+## 🛠️ Local development
+
+```bash
+npm install
+cp .env.example .env.local        # paste your Entra Client ID
+npm run dev                       # http://localhost:5173
+```
+
+`npm run build` produces a static bundle in `dist/` that you can host
+anywhere.
+
+---
+
+## 🚢 Deploying to GitHub Pages
+
+The repo ships with a workflow at `.github/workflows/deploy.yml` that builds
+and publishes to GitHub Pages on every push to `main`.
+
+**One-time setup:**
+
+1. **GitHub repo settings → Pages**: source = *GitHub Actions*.
+2. **GitHub repo settings → Secrets and variables → Actions**:
+   - Add secret `AZURE_CLIENT_ID` = your Entra app's Application (client) ID
+   - (Optional) Add secret `AZURE_TENANT_ID` = a specific tenant ID, or leave
+     unset to allow any work/school tenant (`organizations`)
+   - (Optional) Add variable `BASE_PATH` = `/` if you use a user-page
+     (`username.github.io`) or a custom domain. Defaults to `/{repo-name}/`.
+3. **Entra app registration** → Authentication → Single-page application →
+   add the deployed URL as a redirect URI (with trailing slash):
+   `https://<user>.github.io/<repo>/`
+
+Then push to `main` — the workflow builds with `VITE_AZURE_CLIENT_ID` baked
+in and publishes `dist/` to Pages.
+
+---
+
 ## 🤝 Contributing
 
 If you have feature ideas, improvements, or feedback — feel free to reach out.
