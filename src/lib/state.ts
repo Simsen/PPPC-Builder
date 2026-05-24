@@ -1,5 +1,4 @@
 import { PPPC_PERMISSIONS } from './permissions';
-import { KNOWN_APPS } from './knownApps';
 import { generateRandomUUID } from './uuid';
 import type {
   AppInfo,
@@ -7,7 +6,7 @@ import type {
   SelectedApp,
 } from './types';
 
-export function createDefaultPermissions(): PermissionsState {
+function createDefaultPermissions(): PermissionsState {
   const perms: PermissionsState = {};
   for (const p of PPPC_PERMISSIONS) {
     perms[p.id] = {
@@ -22,15 +21,14 @@ export function makeAppEntry(
   appInfo: AppInfo,
   id: number,
   isFirst: boolean,
-  isKnownAppArg?: boolean,
+  isKnownApp: boolean,
 ): SelectedApp {
   return {
     id,
     app: appInfo,
     permissions: createDefaultPermissions(),
     expanded: isFirst,
-    isKnownApp:
-      isKnownAppArg ?? KNOWN_APPS.some((a) => a.bundleId === appInfo.bundleId),
+    isKnownApp,
     profile: {
       name: `PPPC - ${appInfo.displayName}`,
       description: '',

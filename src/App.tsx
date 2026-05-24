@@ -14,9 +14,11 @@ import { Toast } from './components/Toast';
 import { generateProfiles } from './lib/profiles';
 import { generateRandomUUID } from './lib/uuid';
 import { useAuth } from './lib/auth/useAuth';
+import { loadKnownApps } from './lib/knownApps';
 import { makeAppEntry, totalEnabledPermissions } from './lib/state';
 import type {
   AppInfo,
+  KnownApp,
   OutputMode,
   PermissionState,
   ProfileSettings as ProfileSettingsType,
@@ -29,7 +31,13 @@ export default function App() {
   const [nextId, setNextId] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [outputMode, setOutputMode] = useState<OutputMode>('bundle');
+  const [knownApps, setKnownApps] = useState<KnownApp[]>([]);
   const { state: auth, signIn, signOut } = useAuth();
+
+  // Load the runtime-editable known apps list from /library/known-apps.json
+  useEffect(() => {
+    void loadKnownApps().then(setKnownApps);
+  }, []);
   const [toast, setToast] = useState<{ kind: 'ok' | 'err'; message: string } | null>(null);
   const previousAccount = useRef(auth.account);
 
@@ -69,9 +77,11 @@ export default function App() {
       setError(`${info.displayName} is already added`);
       return;
     }
+    const isKnown =
+      fromKnownList || knownApps.some((a) => a.bundleId === info.bundleId);
     setSelectedApps((prev) => [
       ...prev,
-      makeAppEntry(info, nextId, prev.length === 0, fromKnownList || undefined),
+      makeAppEntry(info, nextId, prev.length === 0, isKnown),
     ]);
     setNextId((id) => id + 1);
     setError(null);
@@ -128,6 +138,7 @@ export default function App() {
               {step === 'build' ? (
                 <>
                   <AppInput
+                    knownApps={knownApps}
                     onAppDetected={handleAppDetected}
                     onError={setError}
                     error={error}

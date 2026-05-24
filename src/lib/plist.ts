@@ -1,5 +1,4 @@
-import { KNOWN_APPS } from './knownApps';
-import type { AppInfo } from './types';
+import type { AppInfo, KnownApp } from './types';
 
 type PlistValue =
   | string
@@ -64,9 +63,10 @@ function parseValue(node: Element): PlistValue {
 
 /**
  * Extract AppInfo from raw plist XML.
- * Auto-fills codeRequirement from KNOWN_APPS when bundleId matches.
+ * Auto-fills codeRequirement when the bundleId matches one of the given
+ * known apps.
  */
-export function parsePlist(content: string): AppInfo {
+export function parsePlist(content: string, knownApps: KnownApp[]): AppInfo {
   try {
     const data = parsePlistXml(content);
     const bundleId = data.CFBundleIdentifier;
@@ -75,7 +75,7 @@ export function parsePlist(content: string): AppInfo {
     }
     const rawDisplay = data.CFBundleDisplayName ?? data.CFBundleName ?? bundleId;
     const displayName = typeof rawDisplay === 'string' ? rawDisplay : bundleId;
-    const knownApp = KNOWN_APPS.find((a) => a.bundleId === bundleId);
+    const knownApp = knownApps.find((a) => a.bundleId === bundleId);
     return {
       bundleId,
       displayName,

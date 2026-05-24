@@ -1,34 +1,41 @@
 import type { KnownApp } from './types';
 
-export const KNOWN_APPS: KnownApp[] = [
-  {
-    bundleId: 'com.microsoft.teams',
-    displayName: 'Microsoft Teams',
-    codeRequirement:
-      'identifier "com.microsoft.teams" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = UBF8T346G9',
-  },
-  {
-    bundleId: 'us.zoom.xos',
-    displayName: 'Zoom',
-    codeRequirement:
-      'identifier "us.zoom.xos" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = BJ4HAAB9B3',
-  },
-  {
-    bundleId: 'com.microsoft.edgemac',
-    displayName: 'Microsoft Edge',
-    codeRequirement:
-      'identifier "com.microsoft.edgemac" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = UBF8T346G9',
-  },
-  {
-    bundleId: 'com.google.Chrome',
-    displayName: 'Google Chrome',
-    codeRequirement:
-      'identifier "com.google.Chrome" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = EQHXZ8M8AV',
-  },
-  {
-    bundleId: 'com.tinyspeck.slackmacgap',
-    displayName: 'Slack',
-    codeRequirement:
-      'identifier "com.tinyspeck.slackmacgap" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = BQR82RBBHL',
-  },
-];
+interface KnownAppsFile {
+  apps: KnownApp[];
+}
+
+let cache: KnownApp[] | null = null;
+let inflight: Promise<KnownApp[]> | null = null;
+
+/**
+ * Fetch the runtime-editable known-apps list from /library/known-apps.json.
+ * Cached after first load; falls back to an empty list if the request fails
+ * (the app still works — users can upload .zip/.plist manually).
+ */
+export async function loadKnownApps(): Promise<KnownApp[]> {
+  if (cache) return cache;
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}library/known-apps.json`, {
+        cache: 'no-cache',
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as KnownAppsFile;
+      cache = Array.isArray(data.apps) ? data.apps : [];
+      return cache;
+    } catch (e) {
+      console.warn('Failed to load known-apps.json', e);
+      cache = [];
+      return cache;
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
+
+/** Synchronous accessor — returns the cached list, or [] before load completes. */
+export function getKnownAppsSync(): KnownApp[] {
+  return cache ?? [];
+}

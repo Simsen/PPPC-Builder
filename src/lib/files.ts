@@ -1,21 +1,24 @@
 import JSZip from 'jszip';
 import { parsePlist } from './plist';
-import type { AppInfo } from './types';
+import type { AppInfo, KnownApp } from './types';
 
 /** Read an uploaded file (.zip with .app bundle, or Info.plist directly) and return AppInfo. */
-export async function processFile(file: File): Promise<AppInfo> {
+export async function processFile(
+  file: File,
+  knownApps: KnownApp[],
+): Promise<AppInfo> {
   if (file.name.endsWith('.zip')) {
-    return processZip(file);
+    return processZip(file, knownApps);
   }
   if (file.name.endsWith('.plist') || file.name === 'Info.plist') {
-    return parsePlist(await file.text());
+    return parsePlist(await file.text(), knownApps);
   }
   throw new Error(
     'Please upload a .zip file containing an .app bundle or an Info.plist file',
   );
 }
 
-async function processZip(file: File): Promise<AppInfo> {
+async function processZip(file: File, knownApps: KnownApp[]): Promise<AppInfo> {
   const zip = await JSZip.loadAsync(file);
   let infoPlistPath: string | null = null;
   zip.forEach((relativePath) => {
@@ -26,5 +29,5 @@ async function processZip(file: File): Promise<AppInfo> {
   if (!infoPlistPath) throw new Error('No Info.plist found in the .app bundle');
   const entry = zip.file(infoPlistPath);
   if (!entry) throw new Error('Could not read Info.plist from zip');
-  return parsePlist(await entry.async('string'));
+  return parsePlist(await entry.async('string'), knownApps);
 }

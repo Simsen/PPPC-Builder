@@ -1,12 +1,12 @@
 import { useRef, useState, type DragEvent } from 'react';
 import { Upload, ChevronDown, AlertCircle, Package } from 'lucide-react';
 import { Card, CardHeader, CardBody } from './Card';
-import { KNOWN_APPS } from '@/lib/knownApps';
 import { processFile } from '@/lib/files';
-import type { AppInfo } from '@/lib/types';
+import type { AppInfo, KnownApp } from '@/lib/types';
 import { cn } from '@/lib/cn';
 
 interface Props {
+  knownApps: KnownApp[];
   onAppDetected: (info: AppInfo, fromKnownList: boolean) => void;
   onError: (message: string) => void;
   error: string | null;
@@ -15,6 +15,7 @@ interface Props {
 }
 
 export function AppInput({
+  knownApps,
   onAppDetected,
   onError,
   error,
@@ -30,7 +31,7 @@ export function AppInput({
     onClearError();
     for (const file of Array.from(files)) {
       try {
-        const info = await processFile(file);
+        const info = await processFile(file, knownApps);
         onAppDetected(info, false);
       } catch (e) {
         onError(e instanceof Error ? e.message : String(e));
@@ -45,7 +46,7 @@ export function AppInput({
   }
 
   function pickKnown(bundleId: string) {
-    const known = KNOWN_APPS.find((a) => a.bundleId === bundleId);
+    const known = knownApps.find((a) => a.bundleId === bundleId);
     if (!known) return;
     setMenuOpen(false);
     onClearError();
@@ -125,7 +126,12 @@ export function AppInput({
           </button>
           {menuOpen && (
             <div className="mt-2 rounded-md border border-border bg-card shadow-[var(--shadow-soft)] overflow-y-auto max-h-[480px]">
-              {KNOWN_APPS.map((app) => {
+              {knownApps.length === 0 && (
+                <div className="px-4 py-3 text-xs text-muted-foreground">
+                  No known apps in the library yet.
+                </div>
+              )}
+              {knownApps.map((app) => {
                 const already = alreadySelectedBundleIds.includes(app.bundleId);
                 return (
                   <button
