@@ -275,7 +275,7 @@ export default function App() {
         <div className="max-w-[1760px] mx-auto px-6 py-5 text-center text-xs text-muted-foreground">
           MacPPPC is owned and maintained by{' '}
           <a
-            href="https://www.linkedin.com/in/roy-klooster/"
+            href="https://linktr.ee/royklo"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-foreground/80 hover:text-primary transition-colors"
