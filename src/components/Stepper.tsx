@@ -19,9 +19,7 @@ export function Stepper({ current, onChange, canDeploy }: Props) {
     <nav className="flex items-center gap-1 mb-5" aria-label="Workflow steps">
       {STEPS.map((step, i) => {
         const active = step.id === current;
-        const completed =
-          (step.id === 'build' && current === 'deploy') ||
-          (step.id === 'deploy' && false);
+        const completed = step.id === 'build' && current === 'deploy';
         const enabled = step.id === 'build' || canDeploy;
         return (
           <div key={step.id} className="flex items-center gap-1">

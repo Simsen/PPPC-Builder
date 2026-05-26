@@ -80,11 +80,9 @@ function buildConfig(clientId: string, tenantId: string): Configuration {
       postLogoutRedirectUri: redirect,
     },
     cache: {
-      // localStorage is required for the popup callback flow: the popup
-      // window has its own sessionStorage (not shared with the opener), so
-      // sessionStorage causes no_token_request_cache_error during callback.
-      // Tokens are short-lived (1h access; refresh tokens auto-rotate) and
-      // are cleared by Sign out.
+      // localStorage persists tokens across the Microsoft redirect round-trip
+      // and across tabs/reloads. Tokens are short-lived (1h access; refresh
+      // tokens auto-rotate) and are cleared by Sign out.
       cacheLocation: 'localStorage',
     },
   };

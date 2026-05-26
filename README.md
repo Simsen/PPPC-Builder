@@ -75,8 +75,9 @@ for manual upload to Intune Custom Configuration profiles.
 
 - **100% client-side.** The Vite-built static bundle runs entirely in your
   browser. No backend, no analytics, no telemetry, no proxy.
-- **MSAL tokens** live in `localStorage` (required by the popup callback
-  flow). Sign out clears them. They're never sent to any server other than
+- **MSAL tokens** live in `localStorage` so they survive the
+  Microsoft redirect round-trip and persist across tabs and reloads.
+  Sign out clears them. They're never sent to any server other than
   Microsoft.
 - **Graph calls go direct** from your browser to `graph.microsoft.com`.
 - **No Client Secret** — the app uses the SPA + PKCE OAuth flow. Only your

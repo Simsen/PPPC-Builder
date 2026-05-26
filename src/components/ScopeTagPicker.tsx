@@ -15,10 +15,15 @@ let cachePromise: Promise<ScopeTag[]> | null = null;
 async function getScopeTags(): Promise<ScopeTag[]> {
   if (cached) return cached;
   if (cachePromise) return cachePromise;
-  cachePromise = listScopeTags().then((tags) => {
-    cached = tags;
-    return tags;
-  });
+  cachePromise = listScopeTags()
+    .then((tags) => {
+      cached = tags;
+      return tags;
+    })
+    .catch((err) => {
+      cachePromise = null;
+      throw err;
+    });
   return cachePromise;
 }
 

@@ -7,10 +7,17 @@
       // Redirect any 404 to the app root, preserving query and hash so the
       // MSAL response (code/state) is forwarded back into the SPA.
       (function () {
+        // Resolve the app base for SPA fallback so MSAL redirect responses
+        // and deep links survive a 404 on GitHub Pages.
+        // - Custom domain (e.g. pppcbuilder.com) -> base is "/".
+        // - GitHub Pages project site (<user>.github.io/<repo>/) -> base is
+        //   "/<repo>/", inferred from the first path segment.
         var base = '/';
         try {
-          var meta = document.querySelector('meta[name="vite-base"]');
-          if (meta && meta.content) base = meta.content;
+          if (window.location.hostname.endsWith('.github.io')) {
+            var seg = window.location.pathname.split('/')[1];
+            if (seg) base = '/' + seg + '/';
+          }
         } catch (e) {}
         var href = base + window.location.search + window.location.hash;
         window.location.replace(href);

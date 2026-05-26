@@ -29,58 +29,50 @@ export function AppCard({
 
   return (
     <div className="rounded-lg border border-border/60 bg-card-elevated/30 overflow-hidden transition hover:border-border-strong/50">
-      <button
-        type="button"
-        onClick={onToggleExpanded}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-card-elevated/60 transition"
-      >
-        <div className="text-muted-foreground">
-          {item.expanded ? (
-            <ChevronDown className="w-4 h-4" />
-          ) : (
-            <ChevronRight className="w-4 h-4" />
-          )}
-        </div>
-        <div className="w-9 h-9 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-          <AppWindow className="w-4 h-4" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-medium truncate">{item.app.displayName}</span>
-            {item.isKnownApp && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                <ShieldCheck className="w-3 h-3" />
-                Known
-              </span>
+      <div className="flex items-stretch">
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="flex-1 min-w-0 flex items-center gap-3 p-4 text-left hover:bg-card-elevated/60 transition"
+          aria-expanded={item.expanded}
+        >
+          <div className="text-muted-foreground">
+            {item.expanded ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
             )}
           </div>
-          <div className="text-xs text-muted-foreground truncate font-mono">
-            {item.app.bundleId}
+          <div className="w-9 h-9 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+            <AppWindow className="w-4 h-4" />
           </div>
-        </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
-          {enabledCount} / {PPPC_PERMISSIONS.length}
-        </span>
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              e.stopPropagation();
-              onRemove();
-            }
-          }}
-          className="text-muted-foreground hover:text-destructive p-1 rounded-md hover:bg-destructive/10 transition cursor-pointer"
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-medium truncate">{item.app.displayName}</span>
+              {item.isKnownApp && (
+                <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                  <ShieldCheck className="w-3 h-3" />
+                  Known
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground truncate font-mono">
+              {item.app.bundleId}
+            </div>
+          </div>
+          <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
+            {enabledCount} / {PPPC_PERMISSIONS.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="flex items-center justify-center px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
           aria-label="Remove app"
         >
           <Trash2 className="w-4 h-4" />
-        </span>
-      </button>
+        </button>
+      </div>
 
       <div
         className={cn(

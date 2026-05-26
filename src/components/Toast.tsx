@@ -20,12 +20,15 @@ export function Toast({ toast, onDismiss }: Props) {
     }
     setVisible(true);
     if (toast.kind === 'ok') {
-      const t = setTimeout(() => {
+      let dismissTimer: ReturnType<typeof setTimeout> | undefined;
+      const hideTimer = setTimeout(() => {
         setVisible(false);
-        const cleanup = setTimeout(onDismiss, 200);
-        return () => clearTimeout(cleanup);
+        dismissTimer = setTimeout(onDismiss, 200);
       }, 3500);
-      return () => clearTimeout(t);
+      return () => {
+        clearTimeout(hideTimer);
+        if (dismissTimer) clearTimeout(dismissTimer);
+      };
     }
   }, [toast, onDismiss]);
 
