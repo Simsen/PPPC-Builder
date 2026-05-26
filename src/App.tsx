@@ -270,6 +270,30 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      <footer className="border-t border-border bg-background/60">
+        <div className="max-w-[1760px] mx-auto px-6 py-5 text-center text-xs text-muted-foreground">
+          MacPPPC is owned and maintained by{' '}
+          <a
+            href="https://www.linkedin.com/in/roy-klooster/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground/80 hover:text-primary transition-colors"
+          >
+            Roy Klooster
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://www.linkedin.com/in/simoneriksendk/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground/80 hover:text-primary transition-colors"
+          >
+            Simon Hartmann Eriksen
+          </a>
+          .
+        </div>
+      </footer>
     </div>
   );
 }

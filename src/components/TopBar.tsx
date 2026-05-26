@@ -26,7 +26,7 @@ export function TopBar({
           <Shield className="w-5 h-5 text-primary" strokeWidth={2.2} />
           <div className="leading-none">
             <div className="text-sm font-semibold tracking-tight">
-              Intune <span className="text-primary">PPPC</span> Builder
+              Mac<span className="text-primary">PPPC</span>
             </div>
             <div className="text-[10px] text-muted-foreground mt-0.5">
               macOS privacy preferences
