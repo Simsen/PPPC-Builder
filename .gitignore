@@ -8,3 +8,7 @@ dist-ssr
 .env.local
 *.tsbuildinfo
 CLAUDE.md
+
+# Local scratch notes (never committed)
+NEXT-STEPS.md
+.pr-body.md
