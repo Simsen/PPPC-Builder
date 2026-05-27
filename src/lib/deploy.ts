@@ -30,10 +30,12 @@ function classicPortalUrl(id: string, policyName: string, assigned: boolean): st
   return `${INTUNE_PORTAL_BASE}/#view/Microsoft_Intune_DeviceSettings/PolicySummaryReportBlade/policyId/${id}/policyName/${name}/policyJourneyState~/0/policyType~/56/isAssigned~/${assigned ? 'true' : 'false'}`;
 }
 
-function settingsCatalogPortalUrl(id: string): string {
-  // Settings Catalog policies live under the configurationPolicies blade.
-  // The overview blade accepts a policyId and renders Properties/Assignments.
-  return `${INTUNE_PORTAL_BASE}/#view/Microsoft_Intune_DeviceSettings/ConfigureWMPolicyMenuBlade/~/properties/policyId/${id}`;
+function settingsCatalogPortalUrl(id: string, assigned: boolean): string {
+  // Working deep link for Settings Catalog (configurationPolicies) policies
+  // on macOS, routed through Microsoft_Intune_Workflows' PolicySummaryBlade.
+  // `technology` matches what we POST as the policy's `technologies` value;
+  // the comma must be URL-encoded.
+  return `${INTUNE_PORTAL_BASE}/#view/Microsoft_Intune_Workflows/PolicySummaryBlade/policyId/${id}/isAssigned~/${assigned ? 'true' : 'false'}/technology/mdm%2CappleRemoteManagement/templateId//platformName/macOS`;
 }
 
 function portalUrl(
@@ -44,7 +46,7 @@ function portalUrl(
 ): string {
   return format === 'classic'
     ? classicPortalUrl(id, policyName, assigned)
-    : settingsCatalogPortalUrl(id);
+    : settingsCatalogPortalUrl(id, assigned);
 }
 
 interface CreatedProfile {

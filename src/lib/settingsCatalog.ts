@@ -9,14 +9,24 @@ import type {
 
 /**
  * Build a Microsoft Intune Settings Catalog configuration-policy body for the
- * `com.apple.tcc.configuration-profile-policy` setting tree, as documented in
- * Microsoft Learn and produced by gilburns/Intune-PPPC-Utility.
+ * `com.apple.tcc.configuration-profile-policy` setting tree.
  *
- * Returns the JSON-serializable object that goes in the body of:
+ * The shape mirrors what Intune itself exports and what gilburns/Intune-PPPC-Utility
+ * generates (`IntuneJSONGenerator.swift`) — including the `null` placeholders that
+ * Graph schema lists for every instance/value template reference and audit rule.
+ * Without those placeholders a downloaded JSON cannot be re-imported via Intune's
+ * "Import policy" UI.
+ *
+ * POST target:
  *   POST /beta/deviceManagement/configurationPolicies
  *
- * The same body shape is also what users can download as a .json file for
- * manual import into Intune.
+ * Coverage notes (intentional omissions, to be revisited):
+ *   - Per-app `_item_comment` (free-text, optional) is not modelled in the UI.
+ *   - Per-app `_item_staticcode` (boolean, optional) is not modelled in the UI.
+ *   - The alternative `_item_allowed` (boolean) permission form is not exposed —
+ *     we emit `_item_authorization` for every service. Both forms are valid for
+ *     Accessibility / BluetoothAlways / SystemPolicyAllFiles / DownloadsFolder /
+ *     SysAdminFiles per gilburns; the authorization form is the more common one.
  */
 
 const ROOT_KEY = 'com.apple.tcc.configuration-profile-policy';
@@ -24,16 +34,20 @@ const ROOT_SETTING_ID = `${ROOT_KEY}_${ROOT_KEY}`;
 const SERVICES_ID = `${ROOT_KEY}_services`;
 
 const TYPE_GROUP_COLL = '#microsoft.graph.deviceManagementConfigurationGroupSettingCollectionInstance';
-const TYPE_GROUP_SINGLE = '#microsoft.graph.deviceManagementConfigurationGroupSettingInstance';
 const TYPE_CHOICE = '#microsoft.graph.deviceManagementConfigurationChoiceSettingInstance';
 const TYPE_SIMPLE = '#microsoft.graph.deviceManagementConfigurationSimpleSettingInstance';
 const TYPE_STRING_VALUE = '#microsoft.graph.deviceManagementConfigurationStringSettingValue';
 
-/** Authorization → choice-value numeric suffix used by Microsoft's setting catalog. */
-const AUTH_SUFFIX: Record<Authorization, '0' | '2' | '3'> = {
+/**
+ * Authorization → choice-value numeric suffix.
+ * Matches Microsoft's AuthorizationValue enum (and gilburns PPPCModels.swift):
+ *   allow = 0, deny = 1, allowStandardUser = 2
+ * (There is no `_3` — sending it produces a Graph 400 or a no-op policy.)
+ */
+const AUTH_SUFFIX: Record<Authorization, '0' | '1' | '2'> = {
   Allow: '0',
+  Deny: '1',
   AllowStandardUserToSetSystemService: '2',
-  Deny: '3',
 };
 
 const IDENTIFIER_TYPE_SUFFIX = {
@@ -41,34 +55,45 @@ const IDENTIFIER_TYPE_SUFFIX = {
   path: '1',
 } as const;
 
-type SettingInstance =
-  | GroupCollectionInstance
-  | GroupSingleInstance
-  | ChoiceInstance
-  | SimpleStringInstance;
+// ─── Type model ─────────────────────────────────────────────────────────────
+
+type SettingInstance = GroupCollectionInstance | ChoiceInstance | SimpleStringInstance;
+
+interface ValueWrapper {
+  settingValueTemplateReference: null;
+  children: SettingInstance[];
+}
 
 interface GroupCollectionInstance {
   '@odata.type': typeof TYPE_GROUP_COLL;
   settingDefinitionId: string;
-  groupSettingCollectionValue: Array<{ children: SettingInstance[] }>;
-}
-
-interface GroupSingleInstance {
-  '@odata.type': typeof TYPE_GROUP_SINGLE;
-  settingDefinitionId: string;
-  groupSettingValue: { children: SettingInstance[] };
+  settingInstanceTemplateReference: null;
+  auditRuleInformation: null;
+  groupSettingCollectionValue: ValueWrapper[];
 }
 
 interface ChoiceInstance {
   '@odata.type': typeof TYPE_CHOICE;
   settingDefinitionId: string;
-  choiceSettingValue: { value: string; children: SettingInstance[] };
+  settingInstanceTemplateReference: null;
+  auditRuleInformation: null;
+  choiceSettingValue: {
+    settingValueTemplateReference: null;
+    value: string;
+    children: SettingInstance[];
+  };
 }
 
 interface SimpleStringInstance {
   '@odata.type': typeof TYPE_SIMPLE;
   settingDefinitionId: string;
-  simpleSettingValue: { '@odata.type': typeof TYPE_STRING_VALUE; value: string };
+  settingInstanceTemplateReference: null;
+  auditRuleInformation: null;
+  simpleSettingValue: {
+    '@odata.type': typeof TYPE_STRING_VALUE;
+    settingValueTemplateReference: null;
+    value: string;
+  };
 }
 
 export interface SettingsCatalogPolicy {
@@ -77,13 +102,32 @@ export interface SettingsCatalogPolicy {
   platforms: 'macOS';
   technologies: 'mdm,appleRemoteManagement';
   roleScopeTagIds: string[];
+  templateReference: {
+    templateId: '';
+    templateFamily: 'none';
+    templateDisplayName: null;
+    templateDisplayVersion: null;
+  };
+  priorityMetaData: null;
+  creationSource: null;
+  settingCount: number;
   settings: Array<{
-    '@odata.type': '#microsoft.graph.deviceManagementConfigurationSetting';
+    id: string;
     settingInstance: SettingInstance;
   }>;
 }
 
-/** Lowercase identifier suffix Microsoft uses for each PPPC service. */
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * Lowercase identifier suffix Microsoft uses for each PPPC service.
+ *
+ * Microsoft's settingDefinitionId scheme lowercases the Apple TCC service name
+ * verbatim — `SystemPolicyAllFiles` → `systempolicyallfiles`,
+ * `ScreenCapture` → `screencapture`, etc. Confirmed against
+ * gilburns PPPCServiceType.swift `jsonKey` (which is just `rawValue`) and
+ * Microsoft's exported policy JSON.
+ */
 function serviceKey(tccService: string): string {
   return tccService.toLowerCase();
 }
@@ -104,11 +148,21 @@ function defaultCodeRequirement(bundleId: string): string {
   return `identifier "${bundleId}" and anchor apple generic`;
 }
 
+function valueWrapper(children: SettingInstance[]): ValueWrapper {
+  return { settingValueTemplateReference: null, children };
+}
+
 function simple(settingDefinitionId: string, value: string): SimpleStringInstance {
   return {
     '@odata.type': TYPE_SIMPLE,
     settingDefinitionId,
-    simpleSettingValue: { '@odata.type': TYPE_STRING_VALUE, value },
+    settingInstanceTemplateReference: null,
+    auditRuleInformation: null,
+    simpleSettingValue: {
+      '@odata.type': TYPE_STRING_VALUE,
+      settingValueTemplateReference: null,
+      value,
+    },
   };
 }
 
@@ -116,14 +170,31 @@ function choice(settingDefinitionId: string, valueSuffix: string): ChoiceInstanc
   return {
     '@odata.type': TYPE_CHOICE,
     settingDefinitionId,
+    settingInstanceTemplateReference: null,
+    auditRuleInformation: null,
     choiceSettingValue: {
+      settingValueTemplateReference: null,
       value: `${settingDefinitionId}_${valueSuffix}`,
       children: [],
     },
   };
 }
 
-/** Field order matches gilburns/Intune-PPPC-Utility: AE-receiver first, then auth/codeReq/identifier/identifierType. */
+function groupColl(
+  settingDefinitionId: string,
+  values: ValueWrapper[],
+): GroupCollectionInstance {
+  return {
+    '@odata.type': TYPE_GROUP_COLL,
+    settingDefinitionId,
+    settingInstanceTemplateReference: null,
+    auditRuleInformation: null,
+    groupSettingCollectionValue: values,
+  };
+}
+
+/** Field order matches gilburns/Intune-PPPC-Utility — cosmetic for Graph, but
+ *  keeps our JSON visually consistent with Intune-exported policies. */
 function appEntryChildren(
   serviceId: string,
   bundleId: string,
@@ -131,27 +202,28 @@ function appEntryChildren(
   authorization: Authorization,
   receiver?: AppleEventReceiver,
 ): SettingInstance[] {
+  const prefix = `${serviceId}_item`;
   const children: SettingInstance[] = [];
 
   if (receiver) {
     children.push(
       simple(
-        `${serviceId}_item_aereceivercoderequirement`,
+        `${prefix}_aereceivercoderequirement`,
         receiver.codeRequirement || defaultCodeRequirement(receiver.identifier),
       ),
-      simple(`${serviceId}_item_aereceiveridentifier`, receiver.identifier),
+      simple(`${prefix}_aereceiveridentifier`, receiver.identifier),
       choice(
-        `${serviceId}_item_aereceiveridentifiertype`,
+        `${prefix}_aereceiveridentifiertype`,
         IDENTIFIER_TYPE_SUFFIX[receiver.identifierType],
       ),
     );
   }
 
   children.push(
-    choice(`${serviceId}_item_authorization`, AUTH_SUFFIX[authorization]),
-    simple(`${serviceId}_item_coderequirement`, codeRequirement),
-    simple(`${serviceId}_item_identifier`, bundleId),
-    choice(`${serviceId}_item_identifiertype`, IDENTIFIER_TYPE_SUFFIX.bundleID),
+    choice(`${prefix}_authorization`, AUTH_SUFFIX[authorization]),
+    simple(`${prefix}_coderequirement`, codeRequirement),
+    simple(`${prefix}_identifier`, bundleId),
+    choice(`${prefix}_identifiertype`, IDENTIFIER_TYPE_SUFFIX.bundleID),
   );
 
   return children;
@@ -163,6 +235,8 @@ interface ServiceAppRow {
   authorization: Authorization;
   receiver?: AppleEventReceiver;
 }
+
+// ─── Main entry point ───────────────────────────────────────────────────────
 
 /**
  * Build the Settings Catalog policy body for one logical profile.
@@ -213,36 +287,28 @@ export function buildSettingsCatalogPolicy(
   const serviceInstances: GroupCollectionInstance[] = [];
   for (const [tccName, rows] of rowsByService) {
     const serviceId = `${SERVICES_ID}_${serviceKey(tccName)}`;
-    serviceInstances.push({
-      '@odata.type': TYPE_GROUP_COLL,
-      settingDefinitionId: serviceId,
-      groupSettingCollectionValue: rows.map((row) => ({
-        children: appEntryChildren(
-          serviceId,
-          row.bundleId,
-          row.codeRequirement,
-          row.authorization,
-          row.receiver,
+    serviceInstances.push(
+      groupColl(
+        serviceId,
+        rows.map((row) =>
+          valueWrapper(
+            appEntryChildren(
+              serviceId,
+              row.bundleId,
+              row.codeRequirement,
+              row.authorization,
+              row.receiver,
+            ),
+          ),
         ),
-      })),
-    });
+      ),
+    );
   }
 
-  const root: GroupCollectionInstance = {
-    '@odata.type': TYPE_GROUP_COLL,
-    settingDefinitionId: ROOT_SETTING_ID,
-    groupSettingCollectionValue: [
-      {
-        children: [
-          {
-            '@odata.type': TYPE_GROUP_COLL,
-            settingDefinitionId: SERVICES_ID,
-            groupSettingCollectionValue: [{ children: serviceInstances }],
-          },
-        ],
-      },
-    ],
-  };
+  // Root tree: root group → single child = services container → service entries.
+  const root: GroupCollectionInstance = groupColl(ROOT_SETTING_ID, [
+    valueWrapper([groupColl(SERVICES_ID, [valueWrapper(serviceInstances)])]),
+  ]);
 
   return {
     name: settings.payloadName || 'PPPC Configuration',
@@ -250,9 +316,18 @@ export function buildSettingsCatalogPolicy(
     platforms: 'macOS',
     technologies: 'mdm,appleRemoteManagement',
     roleScopeTagIds: settings.scopeTagIds.length > 0 ? settings.scopeTagIds : ['0'],
+    templateReference: {
+      templateId: '',
+      templateFamily: 'none',
+      templateDisplayName: null,
+      templateDisplayVersion: null,
+    },
+    priorityMetaData: null,
+    creationSource: null,
+    settingCount: 1,
     settings: [
       {
-        '@odata.type': '#microsoft.graph.deviceManagementConfigurationSetting',
+        id: '0',
         settingInstance: root,
       },
     ],
@@ -263,6 +338,3 @@ export function buildSettingsCatalogPolicy(
 export function serializeSettingsCatalogPolicy(policy: SettingsCatalogPolicy): string {
   return JSON.stringify(policy, null, 4);
 }
-
-// Marker so an unused-import lint doesn't trip on GroupSingleInstance during future expansion.
-export type { GroupSingleInstance };

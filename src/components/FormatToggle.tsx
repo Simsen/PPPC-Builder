@@ -16,7 +16,7 @@ export function FormatToggle({ value, onChange }: Props) {
           active={value === 'classic'}
           onClick={() => onChange('classic')}
           icon={<FileCode2 className="w-4 h-4" />}
-          title="Classic profile"
+          title="Templates › Custom"
           subtitle=".mobileconfig · macOSCustomConfiguration"
         />
         <FormatButton
