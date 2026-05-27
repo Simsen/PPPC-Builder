@@ -13,25 +13,26 @@ import type {
   SelectedApp,
 } from './types';
 
+/**
+ * Returns null when no services would be emitted — e.g. all permissions disabled,
+ * or only AppleEvents enabled with zero receivers. Caller is expected to skip
+ * the profile in that case rather than emit empty content (which would crash
+ * the JSON.parse path in deploy.ts and produce a misleading empty .mobileconfig).
+ */
 function buildContent(
   apps: SelectedApp[],
   settings: ProfileSettings,
   format: DeploymentFormat,
   innerUUID?: string,
-): { content: string; ext: 'mobileconfig' | 'json' } {
+): { content: string; ext: 'mobileconfig' | 'json' } | null {
   if (format === 'classic') {
-    return {
-      content: generateMobileconfig(apps, settings, innerUUID),
-      ext: 'mobileconfig',
-    };
+    const content = generateMobileconfig(apps, settings, innerUUID);
+    return content ? { content, ext: 'mobileconfig' } : null;
   }
   const policy = buildSettingsCatalogPolicy(apps, settings);
-  // settingsCatalog produces null when no permissions enabled — the outer guard
-  // in generateProfiles already returns [] in that case, so we won't reach here.
-  return {
-    content: policy ? serializeSettingsCatalogPolicy(policy) : '',
-    ext: 'json',
-  };
+  return policy
+    ? { content: serializeSettingsCatalogPolicy(policy), ext: 'json' }
+    : null;
 }
 
 /**
@@ -55,7 +56,8 @@ export function generateProfiles(
   if (totalEnabledPermissions(apps) === 0) return [];
 
   if (mode === 'bundle') {
-    const { content, ext } = buildContent(apps, shared, format, innerUUID);
+    const built = buildContent(apps, shared, format, innerUUID);
+    if (!built) return [];
     const appSegment = apps
       .map((a) => a.app.bundleId.split('.').pop())
       .filter(Boolean)
@@ -63,10 +65,10 @@ export function generateProfiles(
     const baseName = shared.payloadName || `PPPC-${appSegment || 'profile'}`;
     return [
       {
-        filename: `${safeFilename(baseName)}.${ext}`,
+        filename: `${safeFilename(baseName)}.${built.ext}`,
         policyName: shared.payloadName || `PPPC Configuration`,
         description: shared.payloadDescription,
-        content,
+        content: built.content,
         format,
         scopeTagIds: shared.scopeTagIds.length > 0 ? shared.scopeTagIds : ['0'],
         deploymentChannel: shared.deploymentChannel,
@@ -74,7 +76,9 @@ export function generateProfiles(
     ];
   }
 
-  // Separate: one profile per app that has at least one enabled permission.
+  // Separate: one profile per app that has at least one enabled permission
+  // AND would actually emit at least one service entry (AppleEvents with no
+  // receivers, for instance, is "enabled" but emits nothing).
   const out: GeneratedProfile[] = [];
   for (const app of apps) {
     if (totalEnabledPermissions([app]) === 0) continue;
@@ -86,17 +90,18 @@ export function generateProfiles(
       scopeTagIds: app.scopeTagIds,
       deploymentChannel: app.deploymentChannel,
     };
-    const { content, ext } = buildContent(
+    const built = buildContent(
       [app],
       perAppSettings,
       format,
       generateRandomUUID(),
     );
+    if (!built) continue;
     out.push({
-      filename: `${safeFilename(perAppSettings.payloadName)}.${ext}`,
+      filename: `${safeFilename(perAppSettings.payloadName)}.${built.ext}`,
       policyName: perAppSettings.payloadName,
       description: perAppSettings.payloadDescription,
-      content,
+      content: built.content,
       format,
       bundleId: app.app.bundleId,
       scopeTagIds: app.scopeTagIds.length > 0 ? app.scopeTagIds : ['0'],

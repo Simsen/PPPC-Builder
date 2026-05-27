@@ -145,50 +145,24 @@ ${appsXml}
     .join('\n');
 }
 
-function emptyProfile(name: string, org: string, desc: string, uuid: string): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>PayloadContent</key>
-    <array/>
-    <key>PayloadDescription</key>
-    <string>${escapeXml(desc)}</string>
-    <key>PayloadDisplayName</key>
-    <string>${escapeXml(name)}</string>
-    <key>PayloadIdentifier</key>
-    <string>${uuid}</string>
-    <key>PayloadOrganization</key>
-    <string>${escapeXml(org)}</string>
-    <key>PayloadScope</key>
-    <string>System</string>
-    <key>PayloadType</key>
-    <string>Configuration</string>
-    <key>PayloadUUID</key>
-    <string>${uuid}</string>
-    <key>PayloadVersion</key>
-    <integer>1</integer>
-</dict>
-</plist>`;
-}
-
 /**
- * Generate a complete .mobileconfig XML string.
+ * Generate a complete .mobileconfig XML string, or null if no services would
+ * be emitted. Returning null lets the caller skip the profile entirely instead
+ * of generating an empty-but-deployable plist (which is misleading and, for
+ * AppleEvents-with-no-receivers, surprising).
  */
 export function generateMobileconfig(
   selectedApps: SelectedApp[],
   settings: ProfileSettings,
   innerPayloadUUID?: string,
-): string {
+): string | null {
   const profileName = settings.payloadName || 'PPPC Configuration';
   const organization = settings.organization || 'IT Department';
   const description = settings.payloadDescription || '';
   const profileUUID = settings.payloadIdentifier || generateRandomUUID();
 
   const servicesContent = buildServicesDict(selectedApps);
-  if (!servicesContent) {
-    return emptyProfile(profileName, organization, description, profileUUID);
-  }
+  if (!servicesContent) return null;
 
   const inner = innerPayloadUUID ?? generateRandomUUID();
   return `<?xml version="1.0" encoding="UTF-8"?>
